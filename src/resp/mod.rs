@@ -2,6 +2,7 @@ use bytes::{Buf, BytesMut};
 use enum_dispatch::enum_dispatch;
 use std::{
     collections::BTreeMap,
+    fmt::Display,
     ops::{Deref, DerefMut},
 };
 use thiserror::Error;
@@ -56,7 +57,7 @@ pub trait RespDecode: Sized {
 // Maps %<number-of-entries>\r\n<key-1><value-1>...<key-n><value-n> %2\r\n+first\r\n:1\r\n+second\r\n:2\r\n
 // Sets ~<number-of-elements>\r\n<element-1>...<element-n>
 #[enum_dispatch(RespEncode)]
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum RespFrame {
     SimpleString(SimpleString),
     Error(SimpleError),
@@ -71,8 +72,8 @@ pub enum RespFrame {
     Map(RespMap),
     Set(RespSet),
 }
-#[derive(Debug, PartialEq, Eq, PartialOrd)]
-pub struct SimpleString(String);
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
+pub struct SimpleString(pub(crate) String);
 impl Deref for SimpleString {
     type Target = str;
     fn deref(&self) -> &Self::Target {
@@ -80,8 +81,8 @@ impl Deref for SimpleString {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd)]
-pub struct SimpleError(String);
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
+pub struct SimpleError(pub(crate) String);
 impl SimpleError {
     pub fn new(s: impl Into<String>) -> Self {
         Self(s.into())
@@ -94,14 +95,14 @@ impl Deref for SimpleError {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
 pub struct RespNull;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
 pub struct RespNullArray;
 
-#[derive(Debug, PartialEq, PartialOrd)]
-pub struct RespArray(Vec<RespFrame>);
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
+pub struct RespArray(pub(crate) Vec<RespFrame>);
 impl Deref for RespArray {
     type Target = Vec<RespFrame>;
     fn deref(&self) -> &Self::Target {
@@ -109,19 +110,24 @@ impl Deref for RespArray {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
 pub struct RespNullBulkString;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd)]
-pub struct BulkString(Vec<u8>);
+#[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
+pub struct BulkString(pub(crate) Vec<u8>);
 impl Deref for BulkString {
     type Target = Vec<u8>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-#[derive(Debug, PartialEq, PartialOrd)]
-pub struct RespMap(BTreeMap<String, RespFrame>);
+impl Display for BulkString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
+pub struct RespMap(pub(crate) BTreeMap<String, RespFrame>);
 impl Deref for RespMap {
     type Target = BTreeMap<String, RespFrame>;
     fn deref(&self) -> &Self::Target {
@@ -134,8 +140,8 @@ impl DerefMut for RespMap {
         &mut self.0
     }
 }
-#[derive(Debug, PartialEq, PartialOrd)]
-pub struct RespSet(Vec<RespFrame>);
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
+pub struct RespSet(pub(crate) Vec<RespFrame>);
 impl Deref for RespSet {
     type Target = Vec<RespFrame>;
     fn deref(&self) -> &Self::Target {
@@ -158,12 +164,6 @@ impl SimpleString {
 impl BulkString {
     pub fn new(s: impl Into<Vec<u8>>) -> Self {
         Self(s.into())
-    }
-}
-
-impl RespArray {
-    pub fn new(v: Vec<RespFrame>) -> Self {
-        Self(v)
     }
 }
 
@@ -202,6 +202,11 @@ impl From<String> for SimpleString {
         Self(s)
     }
 }
+impl From<String> for BulkString {
+    fn from(s: String) -> Self {
+        BulkString(s.into_bytes())
+    }
+}
 
 impl From<&str> for SimpleError {
     fn from(s: &str) -> Self {
@@ -236,6 +241,24 @@ impl<const N: usize> From<&[u8; N]> for BulkString {
 impl<const N: usize> From<&[u8; N]> for RespFrame {
     fn from(s: &[u8; N]) -> Self {
         BulkString(s.to_vec()).into()
+    }
+}
+
+impl AsRef<str> for SimpleString {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<[u8]> for BulkString {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl RespArray {
+    pub fn new(s: impl Into<Vec<RespFrame>>) -> Self {
+        RespArray(s.into())
     }
 }
 
