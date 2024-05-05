@@ -86,7 +86,7 @@ impl RespDecode for RespFrame {
                 // try null array first
                 if buf.len() >= 4 && buf.starts_with(b"*-1\r\n") {
                     buf.advance(5);
-                    return Ok(RespNull.into());
+                    return Ok(RespNullArray.into());
                 }
                 let frame = RespArray::decode(buf)?;
                 Ok(frame.into())

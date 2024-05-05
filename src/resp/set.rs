@@ -82,7 +82,7 @@ mod tests {
     fn test_set_encode() {
         let mut s = RespSet::new();
         s.push(RespFrame::Integer(1));
-        assert_eq!(s.encode(), b"~1\r\n:+1\r\n");
+        assert_eq!(s.encode(), b"~1\r\n:1\r\n");
     }
 
     #[test]

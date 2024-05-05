@@ -86,7 +86,7 @@ mod tests {
         let mut m = RespMap::new();
         m.insert("key".to_string(), RespFrame::Integer(1));
 
-        assert_eq!(m.encode(), b"%1\r\n+key\r\n:+1\r\n");
+        assert_eq!(m.encode(), b"%1\r\n+key\r\n:1\r\n");
     }
 
     #[test]

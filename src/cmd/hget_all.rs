@@ -1,14 +1,11 @@
-use crate::{BulkString, CommandError, CommandExecutor, HGet, HGetAll, HSet, RespArray, RespFrame};
+use crate::{BulkString, CommandError, CommandExecutor, RespArray, RespFrame};
 
-use super::{extract_args, validate_command, RESP_OK};
+use super::{extract_args, validate_command};
 
-impl CommandExecutor for HGet {
-    fn execute(self, backend: &crate::Backend) -> RespFrame {
-        match backend.hget(&self.key, &self.field) {
-            Some(value) => value,
-            None => RespFrame::Null(crate::RespNull),
-        }
-    }
+#[derive(Debug)]
+pub struct HGetAll {
+    key: String,
+    sort: bool,
 }
 
 impl CommandExecutor for HGetAll {
@@ -37,33 +34,6 @@ impl CommandExecutor for HGetAll {
     }
 }
 
-impl CommandExecutor for HSet {
-    fn execute(self, backend: &crate::Backend) -> RespFrame {
-        backend.hset(self.key, self.field, self.value);
-        RESP_OK.clone()
-    }
-}
-
-impl TryFrom<RespArray> for HGet {
-    type Error = CommandError;
-
-    fn try_from(value: RespArray) -> Result<Self, Self::Error> {
-        validate_command(&value, &["hget"], 2)?;
-        let mut args = extract_args(value, 1)?.into_iter();
-
-        // test if the first element is a bulk string
-        match (args.next(), args.next()) {
-            (Some(RespFrame::BulkString(key)), Some(RespFrame::BulkString(field))) => Ok(Self {
-                key: String::from_utf8(key.0)?,
-                field: String::from_utf8(field.0)?,
-            }),
-            _ => Err(CommandError::InvalidArgument(
-                "HGET command must have two BulkString arguments".to_string(),
-            )),
-        }
-    }
-}
-
 impl TryFrom<RespArray> for HGetAll {
     type Error = CommandError;
 
@@ -83,49 +53,16 @@ impl TryFrom<RespArray> for HGetAll {
     }
 }
 
-impl TryFrom<RespArray> for HSet {
-    type Error = CommandError;
-
-    fn try_from(value: RespArray) -> Result<Self, Self::Error> {
-        validate_command(&value, &["hset"], 3)?;
-        let mut args = extract_args(value, 1)?.into_iter();
-
-        match (args.next(), args.next(), args.next()) {
-            (Some(RespFrame::BulkString(key)), Some(RespFrame::BulkString(field)), Some(value)) => {
-                Ok(Self {
-                    key: String::from_utf8(key.0)?,
-                    field: String::from_utf8(field.0)?,
-                    value,
-                })
-            }
-            _ => Err(CommandError::InvalidArgument(
-                "HSET command must have three BulkString arguments".to_string(),
-            )),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::RespDecode;
+    use crate::{
+        cmd::{hget::HGet, hset::HSet, RESP_OK},
+        RespDecode,
+    };
 
     use super::*;
     use anyhow::Result;
     use bytes::BytesMut;
-
-    #[test]
-    fn test_hget_from_resp_array() -> Result<()> {
-        let mut buf = BytesMut::new();
-        buf.extend_from_slice(b"*3\r\n$4\r\nhget\r\n$3\r\nmap\r\n$5\r\nhello\r\n");
-
-        let frame = RespArray::decode(&mut buf)?;
-
-        let result: HGet = frame.try_into()?;
-        assert_eq!(result.key, "map");
-        assert_eq!(result.field, "hello");
-
-        Ok(())
-    }
 
     #[test]
     fn test_hgetall_from_resp_array() -> Result<()> {
@@ -136,21 +73,6 @@ mod tests {
 
         let result: HGetAll = frame.try_into()?;
         assert_eq!(result.key, "map");
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_hset_from_resp_array() -> Result<()> {
-        let mut buf = BytesMut::new();
-        buf.extend_from_slice(b"*4\r\n$4\r\nhset\r\n$3\r\nmap\r\n$5\r\nhello\r\n$5\r\nworld\r\n");
-
-        let frame = RespArray::decode(&mut buf)?;
-
-        let result: HSet = frame.try_into()?;
-        assert_eq!(result.key, "map");
-        assert_eq!(result.field, "hello");
-        assert_eq!(result.value, RespFrame::BulkString(b"world".into()));
 
         Ok(())
     }

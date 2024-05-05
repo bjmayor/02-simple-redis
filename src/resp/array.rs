@@ -81,7 +81,7 @@ mod tests {
             SimpleString::new("Ok".to_string()).into(),
             RespFrame::Integer(1),
         ]);
-        assert_eq!(s.encode(), b"*3\r\n$2\r\nOk\r\n+Ok\r\n:+1\r\n");
+        assert_eq!(s.encode(), b"*3\r\n$2\r\nOk\r\n+Ok\r\n:1\r\n");
     }
 
     #[test]
