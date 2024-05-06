@@ -1,4 +1,4 @@
-use crate::{BulkString, CommandError, CommandExecutor, RespArray, RespFrame};
+use crate::{BulkString, CommandError, CommandExecutor, RespFrame};
 
 use super::{extract_args, validate_command};
 
@@ -13,10 +13,10 @@ impl CommandExecutor for Echo {
     }
 }
 
-impl TryFrom<RespArray> for Echo {
+impl TryFrom<Vec<RespFrame>> for Echo {
     type Error = CommandError;
 
-    fn try_from(value: RespArray) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
         validate_command(&value, &["echo"], 1)?;
         let mut args = extract_args(value, 1)?.into_iter();
 

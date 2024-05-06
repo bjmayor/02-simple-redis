@@ -34,16 +34,16 @@ impl CommandExecutor for HGetAll {
     }
 }
 
-impl TryFrom<RespArray> for HGetAll {
+impl TryFrom<Vec<RespFrame>> for HGetAll {
     type Error = CommandError;
 
-    fn try_from(value: RespArray) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
         validate_command(&value, &["hgetall"], 1)?;
         let mut args = extract_args(value, 1)?.into_iter();
 
         match args.next() {
             Some(RespFrame::BulkString(key)) => Ok(Self {
-                key: String::from_utf8(key.0)?,
+                key: String::from_utf8(key.0.expect("not null"))?,
                 sort: false,
             }),
             _ => Err(CommandError::InvalidArgument(
@@ -71,7 +71,7 @@ mod tests {
 
         let frame = RespArray::decode(&mut buf)?;
 
-        let result: HGetAll = frame.try_into()?;
+        let result: HGetAll = frame.0.unwrap().try_into()?;
         assert_eq!(result.key, "map");
 
         Ok(())

@@ -4,11 +4,7 @@ use enum_dispatch::enum_dispatch;
 use crate::{RespDecode, RespEncode, RespError, SimpleString};
 
 use super::{
-    array::{RespArray, RespNullArray},
-    bulk_string::{BulkString, RespNullBulkString},
-    extract_fixed_data,
-    map::RespMap,
-    set::RespSet,
+    array::RespArray, bulk_string::BulkString, extract_fixed_data, map::RespMap, set::RespSet,
     simple_error::SimpleError,
 };
 
@@ -34,9 +30,7 @@ pub enum RespFrame {
     Integer(i64),
     BulkString(BulkString),
     Array(RespArray),
-    NullBulkString(RespNullBulkString),
     Null(RespNull),
-    NullArray(RespNullArray),
     Boolean(bool),
     Double(f64),
     Map(RespMap),
@@ -74,25 +68,15 @@ impl RespDecode for RespFrame {
                 Ok(frame.into())
             }
             Some(b'$') => {
-                // try null bulk string first
-                if buf.len() >= 5 && buf.starts_with(b"$-1\r\n") {
-                    buf.advance(5);
-                    return Ok(RespNullBulkString.into());
-                }
                 let frame = BulkString::decode(buf)?;
                 Ok(frame.into())
             }
             Some(b'*') => {
-                // try null array first
-                if buf.len() >= 4 && buf.starts_with(b"*-1\r\n") {
-                    buf.advance(5);
-                    return Ok(RespNullArray.into());
-                }
                 let frame = RespArray::decode(buf)?;
                 Ok(frame.into())
             }
             Some(b'_') => {
-                let frame = RespNullBulkString::decode(buf)?;
+                let frame = RespNull::decode(buf)?;
                 Ok(frame.into())
             }
             Some(b'#') => {
@@ -132,7 +116,7 @@ impl RespDecode for RespFrame {
             Some(b':') => i64::expect_length(buf),
             Some(b'$') => BulkString::expect_length(buf),
             Some(b'*') => RespArray::expect_length(buf),
-            Some(b'_') => RespNullBulkString::expect_length(buf),
+            Some(b'_') => RespNull::expect_length(buf),
             Some(b'#') => bool::expect_length(buf),
             Some(b',') => f64::expect_length(buf),
             Some(b'%') => RespMap::expect_length(buf),
@@ -164,13 +148,13 @@ impl RespDecode for RespNull {
 
 impl From<&[u8]> for RespFrame {
     fn from(s: &[u8]) -> Self {
-        BulkString(s.to_vec()).into()
+        BulkString(Some(s.to_vec())).into()
     }
 }
 
 impl<const N: usize> From<&[u8; N]> for RespFrame {
     fn from(s: &[u8; N]) -> Self {
-        BulkString(s.to_vec()).into()
+        BulkString(Some(s.to_vec())).into()
     }
 }
 
@@ -220,7 +204,7 @@ mod tests {
         assert_eq!(RespFrame::decode(&mut buf).unwrap(), frame);
 
         let mut buf = BytesMut::from("$-1\r\n");
-        let frame = RespNullBulkString.into();
+        let frame = BulkString(None).into();
         assert_eq!(RespFrame::decode(&mut buf).unwrap(), frame);
 
         let mut buf = BytesMut::from("#t\r\n");

@@ -1,4 +1,4 @@
-use crate::{CommandError, CommandExecutor, RespArray, RespFrame};
+use crate::{CommandError, CommandExecutor, RespFrame};
 
 use super::{extract_args, validate_command};
 
@@ -17,18 +17,18 @@ impl CommandExecutor for HGet {
     }
 }
 
-impl TryFrom<RespArray> for HGet {
+impl TryFrom<Vec<RespFrame>> for HGet {
     type Error = CommandError;
 
-    fn try_from(value: RespArray) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
         validate_command(&value, &["hget"], 2)?;
         let mut args = extract_args(value, 1)?.into_iter();
 
         // test if the first element is a bulk string
         match (args.next(), args.next()) {
             (Some(RespFrame::BulkString(key)), Some(RespFrame::BulkString(field))) => Ok(Self {
-                key: String::from_utf8(key.0)?,
-                field: String::from_utf8(field.0)?,
+                key: String::from_utf8(key.0.expect("not null"))?,
+                field: String::from_utf8(field.0.expect("not null"))?,
             }),
             _ => Err(CommandError::InvalidArgument(
                 "HGET command must have two BulkString arguments".to_string(),
@@ -39,7 +39,8 @@ impl TryFrom<RespArray> for HGet {
 
 #[cfg(test)]
 mod tests {
-    use crate::RespDecode;
+
+    use crate::{RespArray, RespDecode};
 
     use super::*;
     use anyhow::Result;
@@ -52,7 +53,7 @@ mod tests {
 
         let frame = RespArray::decode(&mut buf)?;
 
-        let result: HGet = frame.try_into()?;
+        let result: HGet = frame.0.unwrap().try_into()?;
         assert_eq!(result.key, "map");
         assert_eq!(result.field, "hello");
 

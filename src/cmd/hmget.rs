@@ -28,15 +28,15 @@ impl CommandExecutor for HMGet {
     }
 }
 
-impl TryFrom<RespArray> for HMGet {
+impl TryFrom<Vec<RespFrame>> for HMGet {
     type Error = CommandError;
 
-    fn try_from(value: RespArray) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
         validate_dyn_command(&value, &["hmget"], 2)?;
         let mut args = extract_args(value, 1)?.into_iter();
 
         let key = match args.next() {
-            Some(RespFrame::BulkString(key)) => Ok(String::from_utf8(key.0)?),
+            Some(RespFrame::BulkString(key)) => Ok(String::from_utf8(key.0.expect("not null"))?),
             _ => Err(CommandError::InvalidArgument(
                 "HMGET command must have a BulkString key argument".to_string(),
             )),
@@ -46,7 +46,9 @@ impl TryFrom<RespArray> for HMGet {
 
         for arg in args {
             match arg {
-                RespFrame::BulkString(field) => fields.push(String::from_utf8(field.0)?),
+                RespFrame::BulkString(field) => {
+                    fields.push(String::from_utf8(field.0.expect("not null"))?)
+                }
                 _ => {
                     return Err(CommandError::InvalidArgument(
                         "HMGET command arguments must be BulkString".to_string(),
@@ -74,7 +76,7 @@ mod tests {
 
         let frame = RespArray::decode(&mut buf)?;
 
-        let result: HMGet = frame.try_into()?;
+        let result: HMGet = frame.0.unwrap().try_into()?;
         assert_eq!(result.key, "map");
         assert_eq!(result.fields, vec!["hello", "world"]);
 

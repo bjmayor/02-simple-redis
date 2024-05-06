@@ -1,4 +1,4 @@
-use crate::{Backend, RespArray, RespFrame};
+use crate::{Backend, RespFrame};
 mod echo;
 mod get;
 mod hget;
@@ -63,7 +63,7 @@ impl TryFrom<RespFrame> for Command {
 
     fn try_from(value: RespFrame) -> Result<Self, Self::Error> {
         match value {
-            RespFrame::Array(array) => array.try_into(),
+            RespFrame::Array(array) => array.0.expect("array should not null").try_into(),
             _ => Err(CommandError::InvalidCommand(
                 "Command must be an array".to_string(),
             )),
@@ -71,10 +71,10 @@ impl TryFrom<RespFrame> for Command {
     }
 }
 
-impl TryFrom<RespArray> for Command {
+impl TryFrom<Vec<RespFrame>> for Command {
     type Error = CommandError;
 
-    fn try_from(v: RespArray) -> Result<Self, Self::Error> {
+    fn try_from(v: Vec<RespFrame>) -> Result<Self, Self::Error> {
         match v.first() {
             Some(RespFrame::BulkString(ref cmd)) => match cmd.as_ref() {
                 b"get" => Ok(Get::try_from(v)?.into()),
@@ -101,7 +101,7 @@ impl CommandExecutor for Unrecognized {
 }
 
 fn validate_command(
-    value: &RespArray,
+    value: &[RespFrame],
     names: &[&'static str],
     n_args: usize,
 ) -> Result<(), CommandError> {
@@ -135,7 +135,7 @@ fn validate_command(
 }
 
 fn validate_dyn_command(
-    value: &RespArray,
+    value: &[RespFrame],
     names: &[&'static str],
     at_least_n_args: usize,
 ) -> Result<(), CommandError> {
@@ -168,6 +168,6 @@ fn validate_dyn_command(
     Ok(())
 }
 
-fn extract_args(value: RespArray, start: usize) -> Result<Vec<RespFrame>, CommandError> {
-    Ok(value.0.into_iter().skip(start).collect::<Vec<RespFrame>>())
+fn extract_args(value: Vec<RespFrame>, start: usize) -> Result<Vec<RespFrame>, CommandError> {
+    Ok(value.into_iter().skip(start).collect::<Vec<RespFrame>>())
 }

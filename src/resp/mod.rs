@@ -14,12 +14,12 @@ mod map;
 mod set;
 mod simple_error;
 mod simple_string;
-pub use self::array::{RespArray, RespNullArray};
+pub use self::array::RespArray;
 
 pub use bulk_string::BulkString;
-pub use bulk_string::RespNullBulkString;
 
 pub use frame::*;
+use lazy_static::lazy_static;
 pub use map::RespMap;
 pub use set::RespSet;
 pub use simple_error::SimpleError;
@@ -28,6 +28,10 @@ pub use simple_string::SimpleString;
 const CRLF: &[u8] = b"\r\n";
 const CRLF_LEN: usize = CRLF.len();
 const BUF_CAP: usize = 4096;
+lazy_static! {
+    static ref NULL_BULK_STRING: Vec<u8> = "$-1\r\n".into();
+    static ref NULL_ARRAY: Vec<u8> = "*-1\r\n".into();
+}
 
 #[enum_dispatch]
 pub trait RespEncode {

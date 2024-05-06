@@ -1,4 +1,4 @@
-use crate::{CommandError, CommandExecutor, RespArray, RespFrame};
+use crate::{CommandError, CommandExecutor, RespFrame};
 
 use super::{extract_args, validate_command};
 
@@ -16,18 +16,23 @@ impl CommandExecutor for Get {
     }
 }
 
-impl TryFrom<RespArray> for Get {
+impl TryFrom<Vec<RespFrame>> for Get {
     type Error = CommandError;
 
-    fn try_from(value: RespArray) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
         validate_command(&value, &["get"], 1)?;
         let mut args = extract_args(value, 1)?.into_iter();
 
         // test if the first element is a bulk string
         match args.next() {
-            Some(RespFrame::BulkString(key)) => Ok(Self {
-                key: String::from_utf8(key.0)?,
-            }),
+            Some(RespFrame::BulkString(key)) => match key.0 {
+                Some(k) => Ok(Self {
+                    key: String::from_utf8(k)?,
+                }),
+                None => Err(CommandError::InvalidArgument(
+                    "GET command must have a BulkString argument".to_string(),
+                )),
+            },
             _ => Err(CommandError::InvalidArgument(
                 "GET command must have a BulkString argument".to_string(),
             )),
@@ -37,8 +42,10 @@ impl TryFrom<RespArray> for Get {
 
 #[cfg(test)]
 mod tests {
+    use crate::{RespArray, RespDecode};
+
     use super::*;
-    use crate::RespDecode;
+
     use anyhow::Result;
     use bytes::BytesMut;
 
@@ -49,7 +56,7 @@ mod tests {
 
         let frame = RespArray::decode(&mut buf)?;
 
-        let result: Get = frame.try_into()?;
+        let result: Get = frame.0.unwrap().try_into()?;
         assert_eq!(result.key, "hello");
 
         Ok(())

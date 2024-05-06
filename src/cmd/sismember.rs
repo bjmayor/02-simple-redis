@@ -1,5 +1,5 @@
 use super::{extract_args, validate_command};
-use crate::{CommandError, CommandExecutor, RespArray, RespFrame};
+use crate::{CommandError, CommandExecutor, RespFrame};
 
 #[derive(Debug)]
 pub struct SIsMember {
@@ -14,22 +14,24 @@ impl CommandExecutor for SIsMember {
     }
 }
 
-impl TryFrom<RespArray> for SIsMember {
+impl TryFrom<Vec<RespFrame>> for SIsMember {
     type Error = CommandError;
 
-    fn try_from(value: RespArray) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<RespFrame>) -> Result<Self, Self::Error> {
         validate_command(&value, &["sismember"], 2)?;
         let mut args = extract_args(value, 1)?.into_iter();
 
         let key = match args.next() {
-            Some(RespFrame::BulkString(key)) => Ok(String::from_utf8(key.0)?),
+            Some(RespFrame::BulkString(key)) => Ok(String::from_utf8(key.0.expect("not null"))?),
             _ => Err(CommandError::InvalidArgument(
                 "SISMEMBER command must have a BulkString key argument".to_string(),
             )),
         }?;
 
         let member = match args.next() {
-            Some(RespFrame::BulkString(member)) => Ok(String::from_utf8(member.0)?),
+            Some(RespFrame::BulkString(member)) => {
+                Ok(String::from_utf8(member.0.expect("not null"))?)
+            }
             _ => Err(CommandError::InvalidArgument(
                 "SISMEMBER command must have a BulkString member argument".to_string(),
             )),
@@ -42,7 +44,7 @@ impl TryFrom<RespArray> for SIsMember {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{cmd::sadd::SAdd, Backend, RespDecode};
+    use crate::{cmd::sadd::SAdd, Backend, RespArray, RespDecode};
     use anyhow::Result;
     use bytes::BytesMut;
 
@@ -53,7 +55,7 @@ mod tests {
 
         let frame = RespArray::decode(&mut buf)?;
 
-        let result: SIsMember = frame.try_into()?;
+        let result: SIsMember = frame.0.unwrap().try_into()?;
         assert_eq!(result.key, "myset");
         assert_eq!(result.member, "world");
 
