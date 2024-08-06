@@ -75,6 +75,12 @@ impl RespArray {
     }
 }
 
+impl From<Vec<RespFrame>> for RespArray {
+    fn from(s: Vec<RespFrame>) -> Self {
+        RespArray(Some(s))
+    }
+}
+
 #[cfg(test)]
 mod tests {
 

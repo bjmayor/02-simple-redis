@@ -48,6 +48,12 @@ impl From<&str> for RespFrame {
     }
 }
 
+impl From<&str> for SimpleString {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
+
 impl From<String> for SimpleString {
     fn from(s: String) -> Self {
         Self(s)

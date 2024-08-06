@@ -1,4 +1,4 @@
-use crate::{Backend, Command, CommandExecutor, RespDecode, RespEncode, RespError, RespFrame};
+use crate::{Backend, Command, CommandExecutor, RespDecodeV2, RespEncode, RespError, RespFrame};
 use anyhow::Result;
 
 use futures::SinkExt;
